@@ -13,6 +13,7 @@
 
 GX_FUN( 0x0043fa70, void, TXT_DrawPrintP, int x, int y, const char* text );
 GX_FUN( 0x0043faa0, void, TXT_DrawPrintF, int x, int y, const char* text, ... );
+GX_FUN( 0x0043fae0, int, TXT_PixelLength, const char* text );
 
 GX_FUN( 0x00444800, void, DrawRectMaybe, int ignored, int x1, int y1, int x2, int y2, std::uint32_t color, std::uint32_t pixc );
 
@@ -36,6 +37,7 @@ enum class debug_menu_type
     dmt_menu,
     dmt_int,
     dmt_bool,
+    dmt_flag,
     dmt_endmenu
 };
 
@@ -53,6 +55,7 @@ struct debug_menu_line
 #define DMT_MENU(text, menu) debug_menu_line{debug_menu_type::dmt_menu, text, (int*)menu, 0}
 #define DMT_INT(text, var) debug_menu_line{debug_menu_type::dmt_int, text, var, 0}
 #define DMT_BOOL(text, var) debug_menu_line{debug_menu_type::dmt_bool, text, (int*)var, 0}
+#define DMT_FLAG(text, var, flag) debug_menu_line{debug_menu_type::dmt_flag, text, (int*)var, flag}
 #define DMT_ENDMENU debug_menu_line{debug_menu_type::dmt_endmenu, nullptr, nullptr, 0}
 
 void goto_level( debug_menu_line* a_line )
@@ -207,17 +210,31 @@ debug_menu_line sound_menu[] =
     DMT_ENDMENU
 };
 
+int ob_debug_draw_flags = 0;
+constexpr int k_ob_debug_draw_types = 1 << 0;
+constexpr int k_ob_debug_draw_layer = 1 << 1;
+constexpr int k_ob_debug_draw_cldprio = 1 << 2;
+constexpr int k_ob_debug_draw_cldtype = 1 << 3;
+constexpr int k_ob_debug_ignore_common_ob_types = 1 << 30;
 bool should_draw_info = false;
 bool should_draw_debug_data = false;
-bool should_draw_ob_types = false;
-bool should_ignore_common_ob_types = true;
+
+debug_menu_line debug_draw_menu[] =
+{
+    DMT_MENU( "main menu...", main_menu ),
+    DMT_FLAG( "ob types", &ob_debug_draw_flags, k_ob_debug_draw_types ),
+    DMT_FLAG( "ignore common ob types", &ob_debug_draw_flags, k_ob_debug_ignore_common_ob_types ),
+    DMT_FLAG( "ob layer", &ob_debug_draw_flags, k_ob_debug_draw_layer ),
+    DMT_FLAG( "ob cldprio", &ob_debug_draw_flags, k_ob_debug_draw_cldprio ),
+    DMT_FLAG( "ob cldtype", &ob_debug_draw_flags, k_ob_debug_draw_cldtype ),
+    DMT_ENDMENU
+};
 
 debug_menu_line main_menu[] =
 {
     DMT_BOOL( "draw info", &should_draw_info ),
     DMT_BOOL( "draw debug data", &should_draw_debug_data ),
-    DMT_BOOL( "draw ob types", &should_draw_ob_types ),
-    DMT_BOOL( "ignore common ob types", &should_ignore_common_ob_types ),
+    DMT_MENU( "debug draw menu...", debug_draw_menu ),
     DMT_MENU( "level select menu...", level_select_menu ),
     DMT_MENU( "cheats menu...", cheats_menu ),
     DMT_MENU( "sound menu...", sound_menu ),
@@ -229,7 +246,7 @@ debug_menu_line* current_menu = main_menu;
 std::stack< debug_menu_line* > menu_stack;
 int selected_index = 0;
 
-void draw_ob_types()
+void draw_obs()
 {
     static const std::set< int > k_types_to_ignore
     {
@@ -241,10 +258,31 @@ void draw_ob_types()
         auto ob = (GXObject*) list.lst_head;
         while( ob )
         {
-            if( should_ignore_common_ob_types && k_types_to_ignore.contains( ob->gob_type ) )
-                continue;
+            int xpos = ob->gob_xpos - CAMERA_XPos;
+            const int ypos = ob->gob_ypos - CAMERA_YPos;
+            const auto drawf = [&]( const char* fmt, ... )
+            {
+                static char buf[1024];
+                va_list args;
+                va_start( args, fmt );
+                vsnprintf( buf, sizeof(buf), fmt, args );
+                TXT_DrawPrintP( xpos, ypos, buf );
+                xpos += TXT_PixelLength( buf ) + GEX_POS(3);
+                va_end( args );
+            };
 
-            TXT_DrawPrintF( ob->gob_xpos - CAMERA_XPos, ob->gob_ypos - CAMERA_YPos, "%d", ob->gob_type );
+            if( ob_debug_draw_flags & k_ob_debug_draw_types )
+            {
+                if( (ob_debug_draw_flags & k_ob_debug_ignore_common_ob_types) == 0 || !k_types_to_ignore.contains( ob->gob_type ) )
+                    drawf( "%d", ob->gob_type );
+            }
+            if( ob_debug_draw_flags & k_ob_debug_draw_layer )
+                drawf( "l%x", ob->gob_flags & OB_LAYER_MASK );
+            if( ob_debug_draw_flags & k_ob_debug_draw_cldprio )
+                drawf( "p%x", ob->gob_flags & OB_CLDPRIO_MASK >> 4 );
+            if( ob_debug_draw_flags & k_ob_debug_draw_cldtype )
+                drawf( "t%x", ob->gob_flags & OB_CLDTYPE_MASK >> 8 );
+
             ob = (GXObject*)ob->gob_node.nd_next;
         }
     }
@@ -336,6 +374,14 @@ void draw_menu_line( int a_y, debug_menu_line* a_line, bool a_selected )
                 TXT_DrawPrintP( GEX_POS(200), a_y, "NULL" );
             break;
         }
+        case debug_menu_type::dmt_flag:
+        {
+            if( a_line->var )
+                TXT_DrawPrintF( GEX_POS(200), a_y, "%s", *(int*)a_line->var & a_line->data1 ? "true" : "false" );
+            else
+                TXT_DrawPrintP( GEX_POS(200), a_y, "NULL" );
+            break;
+        }
         default: break;
     }
 }
@@ -363,6 +409,7 @@ void process_menu_left( debug_menu_line* a_line )
     {
         case debug_menu_type::dmt_int: step_line( a_line, -1 ); break;
         case debug_menu_type::dmt_bool: if( a_line->var ) (*(bool*)a_line->var) = false; break;
+        case debug_menu_type::dmt_flag: if( a_line->var ) (*(int*)a_line->var) &= ~a_line->data1; break;
         default: break;
     }
 }
@@ -373,6 +420,7 @@ void process_menu_right( debug_menu_line* a_line )
     {
         case debug_menu_type::dmt_int: step_line( a_line, 1 ); break;
         case debug_menu_type::dmt_bool: if( a_line->var ) (*(bool*)a_line->var) = true; break;
+        case debug_menu_type::dmt_flag: if( a_line->var ) (*(int*)a_line->var) |= a_line->data1; break;
         default: break;
     }
 }
@@ -449,8 +497,8 @@ void draw_debug_text()
         draw_info();
     if( should_draw_debug_data )
         draw_debug_data();
-    if( should_draw_ob_types )
-        draw_ob_types();
+    if( ob_debug_draw_flags )
+        draw_obs();
 
     if( gCurrentVK == 'o' ) // 'O'
     {
