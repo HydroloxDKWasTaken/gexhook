@@ -512,9 +512,23 @@ void draw_menu()
     if( gCurrentVK == 'p' )
         pop_menu();
 
+    constexpr int k_num_lines_to_show = 10;
 
-    for( int i = 0; current_menu[i].type != debug_menu_type::dmt_endmenu; i++ )
-        draw_menu_line( k_start_y + k_y_step * i, &current_menu[i], i == selected_index );
+    int start_line = 0;
+    if( selected_index > 6 )
+        start_line = selected_index - 6;
+
+    for( int i = start_line; current_menu[i].type != debug_menu_type::dmt_endmenu; i++ )
+    {
+        const int ypos = k_start_y + k_y_step * (i - start_line);;
+        if( i >= k_num_lines_to_show + start_line )
+        {
+            DrawRectMaybe( 0, GEX_POS( 55 ), ypos - k_y_step/3, GEX_POS( 250-55 ), k_y_step, 0, 0x1f801f80 );
+            TXT_DrawPrintF( GEX_POS(70), ypos, "..." );
+            break;
+        }
+        draw_menu_line( ypos, &current_menu[i], i == selected_index );
+    }
 }
 
 void draw_debug_text();
