@@ -1,5 +1,6 @@
 #include "GEX.H"
 #include "hook.h"
+#include <bit>
 #include <cstdarg>
 #include <set>
 #include <stack>
@@ -215,6 +216,14 @@ constexpr int k_ob_debug_draw_types = 1 << 0;
 constexpr int k_ob_debug_draw_layer = 1 << 1;
 constexpr int k_ob_debug_draw_cldprio = 1 << 2;
 constexpr int k_ob_debug_draw_cldtype = 1 << 3;
+constexpr int k_ob_debug_draw_work0 = 1 << 4;
+constexpr int k_ob_debug_draw_work1 = 1 << 5;
+constexpr int k_ob_debug_draw_work2 = 1 << 6;
+constexpr int k_ob_debug_draw_work3 = 1 << 7;
+constexpr int k_ob_debug_draw_work4 = 1 << 8;
+constexpr int k_ob_debug_draw_work5 = 1 << 9;
+constexpr int k_ob_debug_draw_work6 = 1 << 10;
+constexpr int k_ob_debug_draw_work7 = 1 << 11;
 constexpr int k_ob_debug_ignore_common_ob_types = 1 << 30;
 bool should_draw_info = false;
 bool should_draw_debug_data = false;
@@ -227,6 +236,14 @@ debug_menu_line debug_draw_menu[] =
     DMT_FLAG( "ob layer", &ob_debug_draw_flags, k_ob_debug_draw_layer ),
     DMT_FLAG( "ob cldprio", &ob_debug_draw_flags, k_ob_debug_draw_cldprio ),
     DMT_FLAG( "ob cldtype", &ob_debug_draw_flags, k_ob_debug_draw_cldtype ),
+    DMT_FLAG( "ob work0", &ob_debug_draw_flags, k_ob_debug_draw_work0 ),
+    DMT_FLAG( "ob work1", &ob_debug_draw_flags, k_ob_debug_draw_work1 ),
+    DMT_FLAG( "ob work2", &ob_debug_draw_flags, k_ob_debug_draw_work2 ),
+    DMT_FLAG( "ob work3", &ob_debug_draw_flags, k_ob_debug_draw_work3 ),
+    DMT_FLAG( "ob work4", &ob_debug_draw_flags, k_ob_debug_draw_work4 ),
+    DMT_FLAG( "ob work5", &ob_debug_draw_flags, k_ob_debug_draw_work5 ),
+    DMT_FLAG( "ob work6", &ob_debug_draw_flags, k_ob_debug_draw_work6 ),
+    DMT_FLAG( "ob work7", &ob_debug_draw_flags, k_ob_debug_draw_work7 ),
     DMT_ENDMENU
 };
 
@@ -255,9 +272,10 @@ void draw_obs()
     }; 
     for( const auto& list : gObjectLists )
     {
-        auto ob = (GXObject*) list.lst_head;
-        while( ob )
+        for( auto ob = (GXObject*) list.lst_head; ob; ob = (GXObject*) ob->gob_node.nd_next )
         {
+            if( (ob_debug_draw_flags & k_ob_debug_ignore_common_ob_types) && k_types_to_ignore.contains( ob->gob_type ) )
+                continue;
             int xpos = ob->gob_xpos - CAMERA_XPos;
             const int ypos = ob->gob_ypos - CAMERA_YPos;
             const auto drawf = [&]( const char* fmt, ... )
@@ -271,19 +289,29 @@ void draw_obs()
                 va_end( args );
             };
 
-            if( ob_debug_draw_flags & k_ob_debug_draw_types )
+            const auto draw_work = [&]( int work_flag )
             {
-                if( (ob_debug_draw_flags & k_ob_debug_ignore_common_ob_types) == 0 || !k_types_to_ignore.contains( ob->gob_type ) )
-                    drawf( "%d", ob->gob_type );
-            }
+                int index = std::countr_zero( static_cast< unsigned >( work_flag ) ) - std::countr_zero( static_cast< unsigned >( k_ob_debug_draw_work0 ) );
+                if( ob_debug_draw_flags & work_flag )
+                    drawf( "%d:%x", index, (&ob->gob_work0)[index] );
+            };
+
+            if( ob_debug_draw_flags & k_ob_debug_draw_types )
+                drawf( "%d", ob->gob_type );
             if( ob_debug_draw_flags & k_ob_debug_draw_layer )
                 drawf( "l%x", ob->gob_flags & OB_LAYER_MASK );
             if( ob_debug_draw_flags & k_ob_debug_draw_cldprio )
                 drawf( "p%x", ob->gob_flags & OB_CLDPRIO_MASK >> 4 );
             if( ob_debug_draw_flags & k_ob_debug_draw_cldtype )
                 drawf( "t%x", ob->gob_flags & OB_CLDTYPE_MASK >> 8 );
-
-            ob = (GXObject*)ob->gob_node.nd_next;
+            draw_work( k_ob_debug_draw_work0 );
+            draw_work( k_ob_debug_draw_work1 );
+            draw_work( k_ob_debug_draw_work2 );
+            draw_work( k_ob_debug_draw_work3 );
+            draw_work( k_ob_debug_draw_work4 );
+            draw_work( k_ob_debug_draw_work5 );
+            draw_work( k_ob_debug_draw_work6 );
+            draw_work( k_ob_debug_draw_work7 );
         }
     }
 }
