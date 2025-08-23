@@ -568,17 +568,10 @@ void draw_debug_text()
 
 bool videos = false;
 
-void disable_video_hook( const char* a_video_name );
-quick_hook disable_video_hook_hook{00404410, (void*)&disable_video_hook};
-void disable_video_hook( const char* a_video_name )
-{
-    if( videos )
-        return;
-
-    disable_video_hook_hook.remove();
-    ((void(*)())0x0043f3d0)();
-    disable_video_hook_hook.install();
-}
+void disable_video_error_box( int error );
+quick_hook disable_video_error_box_hook{0x004046b0, (void*)&disable_video_error_box};
+void disable_video_error_box( int error )
+{}
 
 class init_type
 {
@@ -590,7 +583,4 @@ public:
         OutputDebugStringA( ("pid: " + pid + "\n").c_str() );
         menu_stack.push( main_menu );
     }
-};
-
-static init_type i;
-
+} static i;
