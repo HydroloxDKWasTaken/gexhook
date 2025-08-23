@@ -212,6 +212,7 @@ debug_menu_line sound_menu[] =
 };
 
 int ob_debug_draw_flags = 0;
+int ob_debug_draw_filter_by_type = -1;
 constexpr int k_ob_debug_draw_types = 1 << 0;
 constexpr int k_ob_debug_draw_layer = 1 << 1;
 constexpr int k_ob_debug_draw_cldprio = 1 << 2;
@@ -233,6 +234,7 @@ debug_menu_line debug_draw_menu[] =
     DMT_MENU( "main menu...", main_menu ),
     DMT_FLAG( "ob types", &ob_debug_draw_flags, k_ob_debug_draw_types ),
     DMT_FLAG( "ignore common ob types", &ob_debug_draw_flags, k_ob_debug_ignore_common_ob_types ),
+    DMT_INT( "ob filter type", &ob_debug_draw_filter_by_type ),
     DMT_FLAG( "ob layer", &ob_debug_draw_flags, k_ob_debug_draw_layer ),
     DMT_FLAG( "ob cldprio", &ob_debug_draw_flags, k_ob_debug_draw_cldprio ),
     DMT_FLAG( "ob cldtype", &ob_debug_draw_flags, k_ob_debug_draw_cldtype ),
@@ -274,8 +276,18 @@ void draw_obs()
     {
         for( auto ob = (GXObject*) list.lst_head; ob; ob = (GXObject*) ob->gob_node.nd_next )
         {
-            if( (ob_debug_draw_flags & k_ob_debug_ignore_common_ob_types) && k_types_to_ignore.contains( ob->gob_type ) )
+            const auto filter_pass = [&]
+            {
+                bool pass = true;
+                if( ob_debug_draw_flags & k_ob_debug_ignore_common_ob_types )
+                    pass = pass && !k_types_to_ignore.contains( ob->gob_type );
+                if( ob_debug_draw_filter_by_type != -1 )
+                    pass = pass && ob->gob_type == ob_debug_draw_filter_by_type;
+                return pass;
+            };
+            if( !filter_pass() )
                 continue;
+
             int xpos = ob->gob_xpos - CAMERA_XPos;
             const int ypos = ob->gob_ypos - CAMERA_YPos;
             const auto drawf = [&]( const char* fmt, ... )
