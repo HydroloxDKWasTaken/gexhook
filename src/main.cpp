@@ -9,6 +9,8 @@
 #include <windows.h>
 
 #define GEX_POS(x) ((x) << 16)
+#define GEX_POS_SCREEN_INDEX(x) ((x) >> 0x18)
+#define GEX_POS_SCREEN_ROW_INDEX(x) (((x) >> 0x15) & 7)
 #define GX_FUN(addr, ret, name, ...) \
     inline ret (*name)(__VA_ARGS__) = (ret (*)(__VA_ARGS__))addr;
 
@@ -16,15 +18,21 @@ GX_FUN( 0x0043fa70, void, TXT_DrawPrintP, int x, int y, const char* text );
 GX_FUN( 0x0043faa0, void, TXT_DrawPrintF, int x, int y, const char* text, ... );
 GX_FUN( 0x0043fae0, int, TXT_PixelLength, const char* text );
 
+GX_FUN( 0x0040f170, uint32_t, M1_GetBlockAttributeIDAtPos, M1Level* level, int x, int y );
+
 GX_FUN( 0x00444800, void, DrawRectMaybe, int ignored, int x1, int y1, int x2, int y2, std::uint32_t color, std::uint32_t pixc );
 
+inline auto gObStateNames = (const char**) 0x00457648;
 inline auto& gCurrentVK = *(int*) 0x00487fd4;
 inline auto& gNoProcess = *(int*) 0x00455c4c;
 inline auto& gTimer = *(int*) 0x004a2ac8;
 inline auto& level = *(int*) 0x004a2964;
+inline auto& M1_CurrentLevel = *(M1Level**) 0x004a2990;
+inline auto& gPlayerObject =*(GXObject**) 0x004a27fc;
 inline auto& CAMERA_XPos = *(int*) 0x004a2a38;
 inline auto& CAMERA_YPos = *(int*) 0x004a2a1c;
 inline auto& gObjectLists = *(ListType (*)[10]) 0x004a28a0;
+inline auto& gNumObjects = *(int*) 0x004a27a4;
 inline auto& gCurrentCheatCode = *(int*) 0x00455b38;
 inline auto& gEnableSFX = *(int*) 0x00455c08;
 inline auto& gEnableVFX = *(int*) 0x00455c0c;
@@ -226,7 +234,6 @@ constexpr int k_ob_debug_draw_work5 = 1 << 9;
 constexpr int k_ob_debug_draw_work6 = 1 << 10;
 constexpr int k_ob_debug_draw_work7 = 1 << 11;
 constexpr int k_ob_debug_ignore_common_ob_types = 1 << 30;
-bool should_draw_info = false;
 bool should_draw_debug_data = false;
 
 debug_menu_line debug_draw_menu[] =
@@ -249,9 +256,14 @@ debug_menu_line debug_draw_menu[] =
     DMT_ENDMENU
 };
 
+constexpr int k_stats_short = 1 << 0;
+constexpr int k_stats_long = 1 << 1;
+int stats_flags = 0;
+
 debug_menu_line main_menu[] =
 {
-    DMT_BOOL( "draw info", &should_draw_info ),
+    DMT_FLAG( "short stats", &stats_flags, k_stats_short ),
+    DMT_FLAG( "long stats", &stats_flags, k_stats_long ),
     DMT_BOOL( "draw debug data", &should_draw_debug_data ),
     DMT_MENU( "debug draw menu...", debug_draw_menu ),
     DMT_MENU( "level select menu...", level_select_menu ),
@@ -330,11 +342,45 @@ void draw_obs()
 
 void draw_info()
 {
-    int frames = gTimer % 30;
-    int seconds = (gTimer / 30) % 60;
-    int minutes = gTimer / (30*60);
-    TXT_DrawPrintF( GEX_POS(10), GEX_POS(10), "time %02d:%02d:%02d", minutes, seconds, frames );
-    TXT_DrawPrintF( GEX_POS(10), GEX_POS(20), "level %d fmem %d", level, gNumFreeBlocks );
+    if( stats_flags & k_stats_short )
+    {
+        int frames = gTimer % 30;
+        int seconds = (gTimer / 30) % 60;
+        int minutes = gTimer / (30*60);
+        TXT_DrawPrintF( GEX_POS(10), GEX_POS(10), "time %02d:%02d:%02d", minutes, seconds, frames );
+        TXT_DrawPrintF( GEX_POS(140), GEX_POS(10), "level %d fmem %d", level, gNumFreeBlocks );
+    }
+    if( stats_flags & k_stats_long )
+    {
+        int px = 0, py = 0;
+        if( gPlayerObject )
+        {
+            px = gPlayerObject->gob_xpos;
+            py = gPlayerObject->gob_ypos;
+            TXT_DrawPrintF( GEX_POS(32), GEX_POS(43), "pst = %s", gObStateNames[gPlayerObject->gob_state] );
+            TXT_DrawPrintF( GEX_POS(32), GEX_POS(51), "pos = %04lx.%02lx,%04lx.%02lx", px >> 0x15, (px >> 0x10) & 0x1f, py >> 0x15, (py >> 0x10) & 0x1f );
+        }
+        TXT_DrawPrintF( GEX_POS(32), GEX_POS(22), "blocks = %ld", gNumFreeBlocks );
+        TXT_DrawPrintF( GEX_POS(32), GEX_POS(29), "Obs = %ld", gNumObjects );
+        // TODO: ftime
+        // TODO: sx, sy
+        // TODO: delay
+        // TODO: codetime, celtime
+        int blockt = 0;
+        const auto attr = M1_GetBlockAttributeIDAtPos( M1_CurrentLevel, px, py );
+        const auto l_screens_across = M1_CurrentLevel->lvl_map->rmp_screensAcross;
+        const auto l_screens_down = M1_CurrentLevel->lvl_map->rmp_screensDown;
+        const auto* screen =
+            M1_CurrentLevel->lvl_map->rmp_screens[GEX_POS_SCREEN_INDEX(py) * l_screens_across + GEX_POS_SCREEN_INDEX(px)];
+        if( screen )
+        {
+            const auto& row = screen->rms_Rows[GEX_POS_SCREEN_ROW_INDEX(py)];
+            blockt = row.rmr_plots[GEX_POS_SCREEN_ROW_INDEX(px)];
+        }
+        // const auto block_index = M1_CurrentLevel->lvl_map->
+        int contour = -1;
+        TXT_DrawPrintF( GEX_POS(32), GEX_POS(59), "attr = %ld ($%04lx) C=%ld P=$%04lx", attr, blockt, contour >> 16 );
+    }
 }
 
 std::vector< std::string > debug_log_datas{};
@@ -547,7 +593,7 @@ void draw_debug_text();
 quick_hook ddt_hook{0x00410250, (void*)&draw_debug_text};
 void draw_debug_text()
 {
-    if( should_draw_info )
+    if( stats_flags )
         draw_info();
     if( should_draw_debug_data )
         draw_debug_data();
