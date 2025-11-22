@@ -9,6 +9,8 @@ Before starting, make sure you have the **GOG version of Gex 1**. This will not 
 Download and place [ddraw.dll from Ultimate-ASI-Loader](https://github.com/ThirteenAG/Ultimate-ASI-Loader/releases/download/Win32-latest/ddraw-Win32.zip) into your game directory.
 Next, download the latest release of gexhook, and place `gexhook.asi` in your game directory.
 
+Test that the installation is working by launching the game and opening the debug menu with 'O' when you get past the intro video.
+
 ## Features
  - Debug menu (open with 'O')
  - Free camera mode
