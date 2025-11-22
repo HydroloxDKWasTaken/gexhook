@@ -23,6 +23,7 @@ GX_FUN( 0x0040f170, uint32_t, M1_GetBlockAttributeIDAtPos, M1Level* level, int x
 GX_FUN( 0x00444800, void, DrawRectMaybe, int ignored, int x1, int y1, int x2, int y2, std::uint32_t color, std::uint32_t pixc );
 
 inline auto gObStateNames = (const char**) 0x00457648;
+inline auto& gEnableScrolling = *(int*) 0x004a2a04;
 inline auto& gCurrentVK = *(int*) 0x00487fd4;
 inline auto& gNoProcess = *(int*) 0x00455c4c;
 inline auto& gTimer = *(int*) 0x004a2ac8;
@@ -219,6 +220,11 @@ debug_menu_line sound_menu[] =
     DMT_ENDMENU
 };
 
+bool free_camera_mode = false;
+int free_camera_x = -1;
+int free_camera_y = -1;
+int free_camera_restore_x = -1;
+int free_camera_restore_y = -1;
 int ob_debug_draw_flags = 0;
 int ob_debug_draw_filter_by_type = -1;
 constexpr int k_ob_debug_draw_types = 1 << 0;
@@ -264,6 +270,7 @@ debug_menu_line main_menu[] =
 {
     DMT_FLAG( "short stats", &stats_flags, k_stats_short ),
     DMT_FLAG( "long stats", &stats_flags, k_stats_long ),
+    DMT_BOOL( "free camera with ijkl", &free_camera_mode ),
     DMT_BOOL( "draw debug data", &should_draw_debug_data ),
     DMT_MENU( "debug draw menu...", debug_draw_menu ),
     DMT_MENU( "level select menu...", level_select_menu ),
@@ -588,6 +595,50 @@ void draw_menu()
         draw_menu_line( ypos, &current_menu[i], i == selected_index );
     }
 }
+void freecam_disable_hook_1();
+quick_hook freecam_disable_hook{0x00431300, (void*)&freecam_disable_hook_1};
+void freecam_disable_hook_1()
+{
+    if( free_camera_mode ) return;
+    freecam_disable_hook.remove();
+    ((void (*)())0x00431300)();
+    freecam_disable_hook.install();
+}
+void freecam_disable_hook_2( int a, int b, int c );
+quick_hook freecam_disable_hook_2_hook{0x0040fe80, (void*)&freecam_disable_hook_2};
+void freecam_disable_hook_2( int a, int b, int c )
+{
+    if( free_camera_mode ) return;
+    freecam_disable_hook_2_hook.remove();
+    ((void (*)(int, int, int))0x0040fe80)( a, b, c );
+    freecam_disable_hook_2_hook.install();
+}
+void freecam_disable_hook3();
+quick_hook freecam_disable_hook3_hook{0x00410250, (void*)&freecam_disable_hook3};
+void freecam_disable_hook3()
+{
+    if( free_camera_mode ) return;
+    freecam_disable_hook3_hook.remove();
+    ((void (*)())0x00410250)();
+    freecam_disable_hook3_hook.install();
+}
+
+void process_freecam()
+{
+    const int speed = std::isupper( gCurrentVK ) ? GEX_POS( 20 ) : GEX_POS( 5 );
+    TXT_DrawPrintF( GEX_POS( 10 ), GEX_POS( 210 ), "i = UP, k = DOWN, j = LEFT, l = RIGHT" );
+    TXT_DrawPrintF( GEX_POS( 10 ), GEX_POS( 220 ), "X = %d, Y = %d", CAMERA_XPos, CAMERA_YPos );
+    if( std::tolower( gCurrentVK ) == 'i' )
+        free_camera_y -= speed;
+    if( std::tolower( gCurrentVK ) == 'k' )
+        free_camera_y += speed;
+    if( std::tolower( gCurrentVK ) == 'j' )
+        free_camera_x -= speed;
+    if( std::tolower( gCurrentVK ) == 'l' )
+        free_camera_x += speed;
+    CAMERA_XPos = free_camera_x;
+    CAMERA_YPos = free_camera_y;
+}
 
 void draw_debug_text();
 quick_hook ddt_hook{0x00410250, (void*)&draw_debug_text};
@@ -607,6 +658,31 @@ void draw_debug_text()
     }
     if( menu_open )
         draw_menu();
+
+    static bool was_freecam = false;
+    if( was_freecam != free_camera_mode )
+    {
+        if( free_camera_mode )
+        {
+            free_camera_x = CAMERA_XPos;
+            free_camera_y = CAMERA_YPos;
+            free_camera_restore_x = free_camera_x;
+            free_camera_restore_y = free_camera_y;
+        }
+        else
+        {
+            CAMERA_XPos = free_camera_restore_x;
+            CAMERA_YPos = free_camera_restore_y;
+        }
+        gEnableScrolling = !free_camera_mode;
+        was_freecam = free_camera_mode;
+    }
+    if( free_camera_mode )
+    {
+        gEnableScrolling = false;
+        process_freecam();
+    }
+
     ddt_hook.remove();
     ((void(*)())0x00410250)();
     ddt_hook.install();
