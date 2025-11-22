@@ -1,5 +1,8 @@
 # gexhook
 gexhook is a small trainer for Gex 1.
+
+![A showcase of the free camera mode and debug info](img/freecam_debug.png)
+
 ## Installation
 Before starting, make sure you have the **GOG version of Gex 1**. This will not work with the Gex Trilogy or any console version of the game.
 
