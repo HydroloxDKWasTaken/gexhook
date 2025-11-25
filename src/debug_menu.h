@@ -21,9 +21,10 @@ enum class line_type {
 };
 
 struct dm_line {
+    using var_t = std::variant<std::monostate, dm_line*, dm_action_fun, int*, bool*>;
+
     line_type type;
     std::string text;
-    using var_t = std::variant<std::monostate, dm_line*, dm_action_fun, int*, bool*>;
     var_t var;
     int data1{};
 

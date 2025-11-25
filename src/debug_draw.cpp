@@ -8,7 +8,11 @@
 #include <string>
 #include <deque>
 
+
+
 namespace debug_draw {
+
+
 
 void draw_obs() {
     static const std::set<int> k_types_to_ignore{
@@ -30,14 +34,12 @@ void draw_obs() {
 
             int xpos = ob->gob_xpos - CAMERA_XPos;
             const int ypos = ob->gob_ypos - CAMERA_YPos;
-            const auto drawf = [&](const char* fmt, ...) {
+
+            const auto drawf = [&](const char* fmt, auto... args) {
                 static char buf[1024];
-                va_list args;
-                va_start(args, fmt);
-                vsnprintf(buf, sizeof(buf), fmt, args);
+                snprintf(buf, sizeof(buf), fmt, args...);
                 TXT_DrawPrintP(xpos, ypos, buf);
                 xpos += TXT_PixelLength(buf) + GEX_POS(3);
-                va_end(args);
             };
 
             const auto draw_work = [&](int work_flag) {
@@ -127,6 +129,15 @@ void debug_data_add_str(const char* a_str) {
     if(debug_log_datas.size() >= k_max_debug_lines)
         debug_log_datas.pop_front();
     debug_log_datas.emplace_back(a_str);
+}
+
+void debug_print(const char* a_format, ...) {
+    char buf[256];
+    va_list args;
+    va_start(args, a_format);
+    std::vsnprintf(buf, sizeof buf, a_format, args);
+    va_end(args);
+    debug_data_add_str(buf);
 }
 
 void draw_debug_data() {

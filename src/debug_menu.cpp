@@ -3,8 +3,35 @@
 #include "game.h"
 #include "global.h"
 #include <Windows.h>
+#include <concepts>
+#include <optional>
 
 namespace debug_menu {
+
+// internal helper functions
+static inline void set_boolean_var(dm_line::var_t& var, bool value) {
+    std::visit([=]<typename T>(T& arg) {
+        if constexpr(std::same_as<T, bool*>) {
+            if(!arg) return;
+            *arg = value;
+        } else if constexpr(std::same_as<T, int*>) {
+            if(!arg) return;
+            *arg = value ? 1 : 0;
+        }
+    },
+        var);
+}
+static inline std::optional<bool> get_boolean_var(const dm_line::var_t& var) {
+    return std::visit([]<typename T>(T&& arg) -> std::optional<bool> {
+        if constexpr(std::same_as<T, bool* const&>) {
+            if(arg) return *arg;
+        } else if constexpr(std::same_as<T, int* const&>)
+            if(arg) return *arg != 0;
+
+        return std::nullopt;
+    },
+        var);
+}
 
 void init() {
     current_menu = main_menu.data();
@@ -53,10 +80,7 @@ inline void process_menu_left(dm_line* a_line) {
         a_line->step(-1);
         break;
     case line_type::boolean: {
-        if(auto p = std::get_if<bool*>(&a_line->var)) {
-            bool* bp = *p;
-            if(bp) (*bp) = false;
-        }
+        set_boolean_var(a_line->var, false);
         break;
     }
     case line_type::flag: {
@@ -74,10 +98,7 @@ inline void process_menu_right(dm_line* a_line) {
     switch(a_line->type) {
     case line_type::integer: a_line->step(1); break;
     case line_type::boolean: {
-        if(auto p = std::get_if<bool*>(&a_line->var)) {
-            bool* bp = *p;
-            if(bp) (*bp) = true;
-        }
+        set_boolean_var(a_line->var, true);
         break;
     }
     case line_type::flag: {
@@ -172,15 +193,13 @@ void dm_line::draw(int a_y, bool a_selected) {
     }
 
     case line_type::boolean: {
-        if(auto p = std::get_if<bool*>(&var)) {
-            bool* bp = *p;
-            if(bp)
-                TXT_DrawPrintF(GEX_POS(200), a_y, "%s", bool_to_c_str(*bp));
-            else
-                TXT_DrawPrintP(GEX_POS(200), a_y, "NULL");
-        } else {
+        auto boolopt = get_boolean_var(var);
+
+        if(boolopt.has_value())
+            TXT_DrawPrintF(GEX_POS(200), a_y, "%s", bool_to_c_str(*boolopt));
+        else
             TXT_DrawPrintP(GEX_POS(200), a_y, "NULL");
-        }
+
         break;
     }
     case line_type::flag: {

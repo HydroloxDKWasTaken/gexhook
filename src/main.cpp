@@ -95,6 +95,10 @@ void disable_video_error_box(int error);
 quick_hook disable_video_error_box_hook{ 0x004046b0, (void*)&disable_video_error_box };
 void disable_video_error_box(int error) {}
 
+// debug_print hook
+quick_hook dp_hook{ 0x00405350, (void*)&debug_draw::debug_print };
+quick_hook dp2_hook{ 0x00405390, (void*)&debug_draw::debug_print };
+
 class init_type {
   public:
     init_type() {
