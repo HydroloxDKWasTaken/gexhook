@@ -76,7 +76,7 @@ void push_menu( dm_line* a_menu );
 void pop_menu( );
 
 /// \return menu_open state after the operation
-int toggle_menu( );
+bool toggle_menu( );
 bool is_menu_open( );
 
 inline int level_to_goto = 0;

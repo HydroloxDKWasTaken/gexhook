@@ -170,7 +170,7 @@ void pop_menu( )
     current_menu = menu_stack.top( );
 }
 
-int toggle_menu( )
+bool toggle_menu( )
 {
     menu_open = !menu_open;
     return menu_open;
