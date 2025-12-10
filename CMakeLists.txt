@@ -22,11 +22,11 @@ add_library( gexhook SHARED
     src/debug_draw.h
     src/debug_menu.cpp
     src/debug_menu.h
-    src/game.h
+    src/game_symbols.h
     src/GEX.H
     src/global.h
     src/main.cpp
-    src/menus.h
+    src/all_menus.h
 )
 
 target_link_libraries( gexhook PRIVATE subhook::subhook )
