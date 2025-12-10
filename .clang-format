@@ -1,0 +1,65 @@
+Language: Cpp
+BasedOnStyle: LLVM
+
+DisableFormat: false
+SortIncludes: false
+SortUsingDeclarations: false
+
+ColumnLimit: 0
+ReflowComments: false
+AlignEscapedNewlines: DontAlign
+
+AllowShortBlocksOnASingleLine: Always
+AllowShortFunctionsOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+AllowShortLoopsOnASingleLine: true
+AllowShortCaseLabelsOnASingleLine: true
+
+BreakBeforeBraces: Allman
+BraceWrapping:
+  AfterFunction: true
+  AfterEnum: true
+  AfterStruct: true
+  AfterClass: true
+  AfterControlStatement: true
+  BeforeElse: true
+  SplitEmptyFunction: false
+  SplitEmptyRecord: false
+  SplitEmptyNamespace: false
+  IndentBraces: false
+
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ContinuationIndentWidth: 4
+
+PointerAlignment: Left
+ReferenceAlignment: Left
+
+BinPackArguments: false
+BinPackParameters: false
+Cpp11BracedListStyle: Block
+
+PenaltyBreakBeforeFirstCallParameter: 0
+PenaltyBreakComment: 0
+PenaltyReturnTypeOnItsOwnLine: 0
+
+AlignOperands: DontAlign
+AlignAfterOpenBracket: DontAlign
+
+NamespaceIndentation: None
+IndentCaseLabels: false
+IndentExternBlock: NoIndent
+
+SpacesInParens: Custom
+SpacesInParensOptions:
+  ExceptDoubleParentheses: false
+  InConditionalStatements: true
+  InEmptyParentheses: true
+  InCStyleCasts: true
+  Other: true
+
+SpacesInSquareBrackets: false
+SpacesInAngles: Always
+SpaceBeforeParens: Never
+SpaceBeforeCtorInitializerColon: false

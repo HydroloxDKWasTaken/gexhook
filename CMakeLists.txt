@@ -17,7 +17,18 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable( subhook )
 
-add_library( gexhook SHARED src/main.cpp )
+add_library( gexhook SHARED 
+    src/debug_draw.cpp
+    src/debug_draw.h
+    src/debug_menu.cpp
+    src/debug_menu.h
+    src/game_symbols.h
+    src/GEX.H
+    src/global.h
+    src/main.cpp
+    src/all_menus.h
+)
+
 target_link_libraries( gexhook PRIVATE subhook::subhook )
 set_target_properties( gexhook PROPERTIES COMPILE_OPTIONS "-m32" LINK_FLAGS "-m32" )
 set_target_properties( gexhook PROPERTIES SUFFIX ".asi" )
